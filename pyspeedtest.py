@@ -81,10 +81,15 @@ class SpeedTest(object):
             raise Exception('Unable to connect to %r' % url)
 
     def downloadthread(self, connection, url):
-        connection.request('GET', url, None, {'Connection': 'Keep-Alive'})
-        response = connection.getresponse()
+        try:
+            connection.request('GET', url, None, {'Connection': 'Keep-Alive'})
+            response = connection.getresponse()
+            downloaded = len(response.read())
+        except Exception as e:
+            LOG.error(e)
+            downloaded = 0
         self_thread = currentThread()
-        self_thread.downloaded = len(response.read())
+        self_thread.downloaded = downloaded
 
     def download(self):
         total_downloaded = 0
@@ -115,15 +120,20 @@ class SpeedTest(object):
         return total_downloaded * 8000 / total_ms
 
     def uploadthread(self, connection, data):
-        url = '/speedtest/upload.php?x=%d' % randint()
-        connection.request('POST', url, data, {
-            'Connection': 'Keep-Alive',
-            'Content-Type': 'application/x-www-form-urlencoded'
-        })
-        response = connection.getresponse()
-        reply = response.read().decode('utf-8')
+        try:
+            url = '/speedtest/upload.php?x=%d' % randint()
+            connection.request('POST', url, data, {
+                'Connection': 'Keep-Alive',
+                'Content-Type': 'application/x-www-form-urlencoded'
+            })
+            response = connection.getresponse()
+            reply = response.read().decode('utf-8')
+            reply = int(reply.split('=')[1])
+        except Exception as e:
+            LOG.error(e)
+            reply = 0
         self_thread = currentThread()
-        self_thread.uploaded = int(reply.split('=')[1])
+        self_thread.uploaded = reply
 
     def upload(self):
         connections = [
